@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<title>Lil Guy</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #111;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    touch-action: manipulation;
+  }
+  canvas {
+    width: 100%;
+    max-width: 800px;
+    height: auto;
+    image-rendering: pixelated;
+    display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="game" width="800" height="600"></canvas>
+
+<script>
+// ---------- CONFIG ----------
+const FIREBASE_URL = "https://hhff-88ec0-default-rtdb.firebaseio.com"; // no trailing slash
+const SAVE_ID = "lilguy_var0"; // must match the SAVE_ID your CodeHS script uses
+
+// ---------- CANVAS SETUP ----------
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+ctx.font = "20px monospace";
+ctx.textBaseline = "top";
+
+// ---------- COLORS ----------
+const WHITE = "#ffffff";
+const GREEN = "#00ff00";
+const RED = "#ff0000";
+const YELLOW = "#ffff00";
+const BLUE = "#0000ff";
+const ORANGE = "#ff7f00";
+const BLACK = "#000000";
+
+// ---------- STATE ----------
+let state = {
+  x: 180, y: 0, x1: 0,
+  mood: 2, mental_state: "neutral",
+  hp: 5, hunger: 20,
+  bond: 0, streak: 0,
+  pets_today: 8,
+  season: "fall", weather: "",
+  lilstate: "", lilstate1: "",
+  speech_timer: 0, current_line: "",
+  session_seconds: 0,
+  animation: 0, animation_seconds_override: 0,
+  lilguy_color: GREEN,
+  running: true,
+  event_running: false, change_change: 0, changevar: 1,
+  lilguy2_0: false, one: 0,
+  save_num: 0,
+  last_open_date: null,   // Date object, UTC midnight
+  last_open_date_str: null,
+  gap: 0,
+};
+
+let hunger_drain_weather = 1.0;
+let mods = { hunger_drain: 1.0, bond_mult: 1.0 };
+let weather_particles = [];
+
+const exit_rect  = { x: 590, y: 120, w: 50, h: 50 };
+const feed_rect  = { x: 590, y: 180, w: 50, h: 50 };
+let lilguy_rect  = { x: state.x, y: 450, w: 30, h: 20 };
+
+// ---------- DIALOGUE ----------
+const dialogue = {
+  happy: [
+    "hehe :)", "today's a good day", "glad you're here",
+    "i love you <3", "i like it when you're around",
+    "thank you for spending time with me",
+  ],
+  neutral: [
+    "...", "just vibing", "hm", "wassup.",
+    "today felt normal. in a good way",
+    "do you ever wonder why theres so much violence",
+    "i've been thinking about that walk earlier",
+    "do you ever wonder what's outside the window",
+    "sometimes i just sit here and think",
+    "someday...ill see others like me",
+  ],
+  angry: [
+    ">:(", "not now.", ">:{", "leave me alone.",
+    "its lonely when you leave me",
+  ],
+  winter: ["it's cold out there, huh", "i wish i could see snow", "let's stay inside today"],
+  spring: ["everything is growing again", "i can smell the flowers. probably.", "spring always feels hopeful"],
+  summer: ["it's so warm out", "summer's my favorite honestly", "i bet its bright outside right now"],
+  fall: ["the leaves must be falling", "fall always feels a little nostalgic", "cozy season, right?"],
+};
+
+const season_colors = {
+  winter: "rgb(225,240,255)",
+  spring: "rgb(230,255,230)",
+  summer: "rgb(255,250,205)",
+  fall:   "rgb(255,235,210)",
+};
+
+const season_modifiers = {
+  winter: { hunger_drain: 1.25, bond_mult: 0.9 },
+  spring: { hunger_drain: 1.0,  bond_mult: 1.1 },
+  summer: { hunger_drain: 0.9,  bond_mult: 1.0 },
+  fall:   { hunger_drain: 1.0,  bond_mult: 1.0 },
+};
+
+const weather_visuals = {
+  rain:   { char: "|", color: "rgb(100,150,255)", speed: 8,  spawn_chance: 3,  mode: "fall" },
+  snow:   { char: "*", color: "rgb(255,255,255)", speed: 2,  spawn_chance: 5,  mode: "fall" },
+  storm:  { char: "|", color: "rgb(80,100,160)",  speed: 12, spawn_chance: 2,  mode: "fall" },
+  cloudy: { char: "~", color: "rgb(200,200,210)", speed: 1,  spawn_chance: 40, mode: "drift" },
+  clear:  { char: "o", color: "rgb(255,220,80)",  speed: 0,  spawn_chance: 0,  mode: "sun" },
+};
+
+// ---------- HELPERS ----------
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+function choice(arr) { return arr[randInt(0, arr.length - 1)]; }
+
+function dateOnlyUTC(d) {
+  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+}
+function daysBetween(d1, d2) {
+  return Math.round((d2 - d1) / 86400000);
+}
+
+function fillRect(x, y, w, h, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, w, h);
+}
+function drawText(text, x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillText(text, x, y);
+}
+function clearScreen(color) {
+  fillRect(0, 0, canvas.width, canvas.height, color);
+}
+
+// ---------- FIREBASE ----------
+async function loadSave() {
+  try {
+    const resp = await fetch(`${FIREBASE_URL}/${SAVE_ID}.json?t=${Date.now()}`);
+    const data = await resp.json();
+    return data;
+  } catch (e) {
+    console.log("cloud load failed:", e);
+    return null;
+  }
+}
+
+async function saveToCloud() {
+  const data = {
+    mental_state: state.mental_state,
+    mood: state.mood,
+    event_running: state.event_running,
+    hp: state.hp,
+    lilguy2_0: state.lilguy2_0,
+    one: state.one,
+    change_change: state.change_change,
+    changevar: state.changevar,
+    x_pos: state.x,
+    y_pos: state.y,
+    x1_pos: state.x1,
+    last_open_date: new Date().toISOString().slice(0, 10),
+    streak: state.streak,
+    bond: state.bond,
+    animation: state.animation,
+    last_hunger_check: new Date().toISOString(),
+    hunger: state.hunger,
+    machine_id: "web-client",
+    pets_today: state.pets_today,
+    last_pet_str: new Date().toISOString(),
+    weather: state.weather,
+    save_num: state.save_num,
+  };
+  try {
+    await fetch(`${FIREBASE_URL}/${SAVE_ID}.json`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+  } catch (e) {
+    console.log("cloud save failed:", e);
+  }
+}
+
+// ---------- WEATHER FETCH ----------
+async function fetchWeather() {
+  let lat = 0, lon = 0;
+  try {
+    const resp = await fetch("https://ipapi.co/json/");
+    const data = await resp.json();
+    lat = data.latitude;
+    lon = data.longitude;
+  } catch (e) {
+    console.log("location lookup failed:", e);
+  }
+
+  let code = null;
+  try {
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current_weather=true`;
+    const resp = await fetch(url);
+    const data = await resp.json();
+    code = data.current_weather.weathercode;
+  } catch (e) {
+    console.log("weather lookup failed:", e);
+  }
+
+  let weather;
+  if (code === 0) weather = "clear";
+  else if ([1, 2, 3].includes(code)) weather = "cloudy";
+  else if ([51, 53, 55, 61, 63, 65, 80, 81, 82].includes(code)) weather = "rain";
+  else if ([71, 73, 75, 77, 85, 86].includes(code)) weather = "snow";
+  else if ([95, 96, 99].includes(code)) weather = "storm";
+  else weather = "clear";
+
+  let drain = 1.0;
+  if (weather === "rain") drain = 1.1;
+  else if (weather === "storm") { drain = 1.15; state.mood += randInt(0, 1) * -1; }
+  else if (weather === "snow") drain = 1.2;
+
+  return { weather, drain };
+}
+
+// ---------- STARTUP ----------
+async function startup() {
+  // season
+  const month = new Date().getMonth() + 1;
+  if ([12, 1, 2].includes(month)) state.season = "winter";
+  else if ([3, 4, 5].includes(month)) state.season = "spring";
+  else if ([6, 7, 8].includes(month)) state.season = "summer";
+  else state.season = "fall";
+  mods = season_modifiers[state.season];
+
+  // weather
+  const w = await fetchWeather();
+  state.weather = w.weather;
+  hunger_drain_weather = w.drain;
+
+  // load save
+  const saved = await loadSave();
+  const today = dateOnlyUTC(new Date());
+
+  if (saved) {
+    state.mental_state = saved.mental_state ?? state.mental_state;
+    state.mood = saved.mood ?? state.mood;
+    state.event_running = saved.event_running ?? false;
+    state.hp = saved.hp ?? state.hp;
+    state.one = saved.one ?? 0;
+    state.change_change = saved.change_change ?? 0;
+    state.changevar = saved.changevar ?? 1;
+    state.x = saved.x_pos ?? state.x;
+    state.y = saved.y_pos ?? state.y;
+    state.x1 = saved.x1_pos ?? state.x1;
+    state.streak = saved.streak ?? 0;
+    state.bond = saved.bond ?? 0;
+    state.animation = saved.animation ?? 0;
+    state.hunger = saved.hunger ?? state.hunger;
+    state.pets_today = saved.pets_today ?? 8;
+    state.save_num = saved.save_num ?? 0;
+
+    // pets regen from last_pet_str
+    if (saved.last_pet_str) {
+      const lastPet = new Date(saved.last_pet_str);
+      const hoursPassed = (Date.now() - lastPet.getTime()) / 3600000;
+      state.pets_today = Math.min(8, state.pets_today + Math.floor(hoursPassed));
+    }
+
+    // hunger decay from last_hunger_check
+    if (saved.last_hunger_check) {
+      const lastHunger = new Date(saved.last_hunger_check);
+      const hoursPassed = (Date.now() - lastHunger.getTime()) / 3600000;
+      state.hunger = Math.max(0, state.hunger - Math.floor(hoursPassed));
+    }
+
+    // streak calc
+    if (saved.last_open_date) {
+      state.last_open_date = dateOnlyUTC(new Date(saved.last_open_date));
+      state.gap = daysBetween(state.last_open_date, today);
+      if (state.gap === 0) {
+        state.save_num += 1;
+      } else if (state.gap === 1) {
+        state.streak += 1;
+        state.save_num += 1;
+        state.pets_today = 8;
+      } else {
+        state.streak = 1;
+      }
+    } else {
+      state.streak = 1;
+      state.gap = 999;
+    }
+  } else {
+    state.streak = 1;
+    state.gap = 999;
+  }
+
+  // hunger influences mental state
+  if (state.hunger <= 2) {
+    state.mental_state = "bad";
+    state.mood = 3;
+  }
+
+  // deciding today's mood (only on a new day)
+  const isNewDay = !state.last_open_date || daysBetween(state.last_open_date, today) !== 0;
+  if (isNewDay) {
+    const offDayChance = randInt(1, 10);
+    const dailyLuck = randInt(1, 5);
+    state.bond += dailyLuck;
+    if (offDayChance === 1) state.mood = 3;
+    else if (state.streak >= 3) state.mood = choice([1, 1, 2]);
+    else state.mood = randInt(1, 2);
+  }
+
+  // convert mood to mental state
+  if (state.mood === 1) state.mental_state = "good";
+  else if (state.mood === 3) state.mental_state = "bad";
+  else state.mental_state = "neutral";
+
+  // contributions screen
+  clearScreen(BLACK);
+  drawText("Made by your_local_robit and outside help.", 60, 300, ORANGE);
+  await sleep(2000);
+
+  // greeting
+  clearScreen(BLACK);
+  let greeting;
+  if (state.gap === 0) greeting = "back already? nice";
+  else if (state.gap === 1) greeting = "hey! good to see you";
+  else if (state.gap <= 3) greeting = "it's been a bit, welcome back";
+  else greeting = "oh — hey. it's been a while";
+  drawText(greeting, 60, 260, state.lilguy_color);
+  await sleep(2000);
+
+  lilguy_rect.x = state.x;
+  mainLoop();
+}
+
+// ---------- MAIN LOOP (runs once per second, matching original clock.tick(1)) ----------
+function tick() {
+  if (!state.running) return;
+
+  // hunger loop
+  if (state.session_seconds % 3600 === 0 && state.session_seconds !== 0) {
+    state.hunger = Math.max(0, state.hunger - mods.hunger_drain * hunger_drain_weather);
+    state.pets_today = Math.min(8, state.pets_today + 1);
+  }
+
+  // dialogue
+  state.speech_timer += 1;
+  if (state.speech_timer >= 120) {
+    state.speech_timer = 0;
+    if (randInt(1, 4) === 1) state.current_line = choice(dialogue[state.season]);
+    else if (state.mood === 1) state.current_line = choice(dialogue.happy);
+    else if (state.mood === 2) state.current_line = choice(dialogue.neutral);
+    else if (state.mood === 3) state.current_line = choice(dialogue.angry);
+  }
+
+  // animations
+  if (state.session_seconds % 30 === 0 || state.animation_seconds_override !== 0) {
+    if (state.mood === 1) {
+      const idle = choice(["walk", "wave"]);
+      if (idle === "walk") { state.lilstate = "_>"; state.lilstate1 = "<_"; state.animation = 1; }
+      else { state.lilstate = "0/"; state.lilstate1 = "0/"; state.animation = 3; }
+    } else {
+      const idle = choice(["walk", "sit"]);
+      if (idle === "walk") { state.lilstate = "_>"; state.lilstate1 = "<_"; state.animation = 1; }
+      else { state.lilstate = "o"; state.lilstate1 = "o"; state.animation = 2; }
+    }
+  }
+
+  state.session_seconds += 1;
+
+  // bond tiers
+  if (state.bond >= 100) state.lilguy_color = YELLOW;
+  else if (state.bond >= 30) state.lilguy_color = "rgb(0,220,150)";
+  else state.lilguy_color = GREEN;
+
+  // movement
+  let text_surface = "_>";
+  if (state.lilstate === "_>" && state.lilstate1 === "<_") {
+    if (state.y === 1) {
+      text_surface = "_>";
+      state.x -= 10;
+      if (state.x === 180) state.y = 0;
+    } else {
+      text_surface = "<_";
+      state.x += 10;
+      if (state.x === 600) state.y = 1;
+    }
+  } else if (state.lilstate === "0/" && state.lilstate1 === "0/") {
+    text_surface = "0/";
+  } else if (state.lilstate === "o" && state.lilstate1 === "o") {
+    text_surface = "o";
+  }
+  lilguy_rect = { x: state.x, y: 450, w: 30, h: 20 };
+
+  draw(text_surface);
+}
+
+function draw(text_surface) {
+  clearScreen(season_colors[state.season]);
+
+  // mood text
+  if (state.mood === 1) drawText("mood :   :)", 140, 125, GREEN);
+  else if (state.mood === 2) drawText("mood :  :|", 140, 125, YELLOW);
+  else if (state.mood === 3) drawText("mood :   >:{", 140, 125, RED);
+
+  // current dialogue line
+  if (state.current_line) drawText(state.current_line, state.x, 430, state.lilguy_color);
+
+  // lil guy sprite
+  drawText(text_surface, state.x, 450, state.lilguy_color);
+
+  // weather
+  const v = weather_visuals[state.weather];
+  if (v) {
+    if (v.mode === "fall") {
+      if (randInt(1, v.spawn_chance) === 1) {
+        weather_particles.push([randInt(0, 800), randInt(250, 400)]);
+      }
+      weather_particles.forEach(p => {
+        p[1] += v.speed;
+        drawText(v.char, p[0], p[1], v.color);
+      });
+      weather_particles = weather_particles.filter(p => p[1] < 600);
+    } else if (v.mode === "drift") {
+      if (randInt(1, v.spawn_chance) === 1) {
+        weather_particles.push([-20, randInt(260, 400)]);
+      }
+      weather_particles.forEach(p => {
+        p[0] += v.speed;
+        drawText("~~~", p[0], p[1], v.color);
+      });
+      weather_particles = weather_particles.filter(p => p[0] < 850);
+    } else if (v.mode === "sun") {
+      drawText("* SUN *", 680, 20, v.color);
+    }
+  } else {
+    weather_particles = [];
+  }
+
+  // divider
+  ctx.strokeStyle = BLACK;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(0, 250);
+  ctx.lineTo(800, 250);
+  ctx.stroke();
+
+  // GUI
+  drawText(state.mental_state, 140, 180, GREEN);
+  drawText(String(Math.round(state.hunger)), 230, 157, RED);
+  drawText("HUNGER=", 140, 157, RED);
+  fillRect(exit_rect.x, exit_rect.y, exit_rect.w, exit_rect.h, RED);
+  fillRect(feed_rect.x, feed_rect.y, feed_rect.w, feed_rect.h, BLUE);
+}
+
+// ---------- INPUT ----------
+function handleClick(clickX, clickY) {
+  if (pointInRect(clickX, clickY, exit_rect)) {
+    state.running = false;
+    clearScreen(season_colors[state.season]);
+    let bye;
+    if (state.mood === 1) bye = "bye!! come back soon ok? <3";
+    else if (state.mood === 3) bye = "....bye.";
+    else bye = "see you later.";
+    drawText(bye, 180, 300, state.mood === 1 ? GREEN : state.mood === 3 ? RED : YELLOW);
+    saveToCloud();
+    return;
+  }
+
+  if (pointInRect(clickX, clickY, lilguy_rect)) {
+    if (state.pets_today > 0) {
+      state.bond += Math.round(1 * mods.bond_mult);
+      state.pets_today -= 1;
+      state.current_line = choice(["hehe", ":)", "that's nice"]);
+    } else {
+      state.current_line = "ok ok that's enough pets for now";
+    }
+    saveToCloud();
+    return;
+  }
+
+  if (pointInRect(clickX, clickY, feed_rect)) {
+    if (state.hunger < 20) {
+      const gained = Math.min(3, 20 - state.hunger);
+      state.hunger += gained;
+      state.bond += Math.round(gained * 2 * mods.bond_mult);
+    }
+    saveToCloud();
+  }
+}
+
+function pointInRect(px, py, r) {
+  return px >= r.x && px <= r.x + r.w && py >= r.y && py <= r.y + r.h;
+}
+
+function getCanvasCoords(clientX, clientY) {
+  const rect = canvas.getBoundingClientRect();
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+}
+
+canvas.addEventListener("click", (e) => {
+  const { x, y } = getCanvasCoords(e.clientX, e.clientY);
+  handleClick(x, y);
+});
+canvas.addEventListener("touchstart", (e) => {
+  e.preventDefault();
+  const touch = e.touches[0];
+  const { x, y } = getCanvasCoords(touch.clientX, touch.clientY);
+  handleClick(x, y);
+}, { passive: false });
+
+// ---------- RUN ----------
+let intervalId = null;
+function mainLoop() {
+  intervalId = setInterval(() => {
+    tick();
+    if (!state.running) clearInterval(intervalId);
+  }, 1000);
+}
+
+startup();
+</script>
+</body>
+</html>
