@@ -141,13 +141,11 @@ function randInt(min, max) { return Math.floor(Math.random() * (max - min + 1)) 
 function choice(arr) { return arr[randInt(0, arr.length - 1)]; }
 
 
-function getIp{
-  fetch('https://api.ipify.org?format=json')
-  .then(response => response.json())
-  .then(data => {
-  const userIP = data.ip;
-  return userIP
-  }};
+async function getIp() {
+  const response = await fetch('https://api.ipify.org?format=json');
+  const data = await response.json();
+  return data.ip;
+}
 
 function dateOnlyUTC(d) {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
@@ -204,7 +202,7 @@ async function saveToCloud() {
     last_pet_str: new Date().toISOString(),
     weather: state.weather,
     save_num: state.save_num,
-    ip: getIp(),
+    userIp: await getIp(),
   };
   try {
     await fetch(`${FIREBASE_URL}/${SAVE_ID}.json`, {
