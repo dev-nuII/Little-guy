@@ -1,0 +1,6 @@
+1. ported lilguy.py over to html and js (used Claude)
+2. created a firebase database to store variables (so it can be accessed over different devices (script or web))
+3. created a vercel project to check variables and added logic so if the variables change (hunger dips too low) the script will send out a push notification
+4. created a cron-job to visit the url every 30 mins (to check if hunger dropped to a certain percentage)
+5. created another vercel addition to check if weather changed in users area (grabs ip saved from lilguy application and grabs the latitude and longitude from the ip and looks the weather up using lat and lon and checks it against last seen weather var and issue a notification if so)
+6. created another cron-job to visit 2nd vercel url every hour
