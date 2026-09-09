@@ -620,7 +620,7 @@ async function setupPush() {
 
   if (permission !== "granted") return;
 
-  let subscription = await registration.pushManager.getSubscription();
+    let subscription = await registration.pushManager.getSubscription();
   if (!subscription) {
     subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
@@ -629,15 +629,16 @@ async function setupPush() {
   }
 
   await fetch("https://lilguy-notifier.vercel.app/api/save-push", {
-  method: "POST",
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(subscription)
+  });
+}
 
-  headers: {
-    "Content-Type": "application/json"
-  },
-
-  body: JSON.stringify(subscription)
-});
 startup();
+</script>
 </script>
 </body>
 </html>
