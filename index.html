@@ -35,9 +35,6 @@
   await setupPush();
   document.getElementById("enableNotifs").style.display = "none"; // hide once done
 });
-// ---------- CONFIG ----------
-const FIREBASE_URL = "https://hhff-88ec0-default-rtdb.firebaseio.com"
-const SAVE_ID = "lilguy_var0"
 // ---------- CANVAS SETUP ----------
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
@@ -179,9 +176,16 @@ function clearScreen(color) {
 // ---------- FIREBASE ----------
 async function loadSave() {
   try {
-    const resp = await fetch(`${FIREBASE_URL}/${SAVE_ID}.json?t=${Date.now()}`);
+    const resp = await fetch("https://lilguy-notifier.vercel.app/api/load-save");
+
+    if (!resp.ok) {
+      throw new Error("Server returned " + resp.status);
+    }
+
     const data = await resp.json();
-    return data;
+
+    return data.save;
+
   } catch (e) {
     console.log("cloud load failed:", e);
     return null;
@@ -189,6 +193,7 @@ async function loadSave() {
 }
 
 async function saveToCloud() {
+
   const data = {
     mental_state: state.mental_state,
     mood: state.mood,
@@ -212,14 +217,25 @@ async function saveToCloud() {
     last_pet_str: new Date().toISOString(),
     weather: state.weather,
     save_num: state.save_num,
-    userIp: await getIp(),
+    userIp: await getIp()
   };
+
   try {
-    await fetch(`${FIREBASE_URL}/${SAVE_ID}.json`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+
+    const response = await fetch("https://lilguy-notifier.vercel.app/api/save-game", {
+      method: "POST",
+
+      headers: {
+        "Content-Type": "application/json"
+      },
+
+      body: JSON.stringify(data)
     });
+
+    if (!response.ok) {
+      throw new Error("Save failed: HTTP " + response.status);
+    }
+
   } catch (e) {
     console.log("cloud save failed:", e);
   }
@@ -612,19 +628,15 @@ async function setupPush() {
     });
   }
 
-  await fetch(`${FIREBASE_URL}/push_subscription.json`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(subscription),
-  });
+  await fetch("https://lilguy-notifier.vercel.app/api/save-push", {
+  method: "POST",
 
-  alert("push subscription saved");
-}
+  headers: {
+    "Content-Type": "application/json"
+  },
 
-document.getElementById("enableNotifs").addEventListener("click", async () => {
-  await setupPush();
+  body: JSON.stringify(subscription)
 });
-
 startup();
 </script>
 </body>
