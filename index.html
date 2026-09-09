@@ -19,9 +19,6 @@
     touch-action: manipulation;
   }
   canvas {
-    width: 100%;
-    max-width: 800px;
-    height: auto;
     image-rendering: pixelated;
     display: block;
   }
@@ -45,8 +42,22 @@ const SAVE_ID = "lilguy_var0"; // must match the SAVE_ID your CodeHS script uses
 // ---------- CANVAS SETUP ----------
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
-ctx.font = "20px monospace";
-ctx.textBaseline = "top";
+
+function resizeCanvas() {
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = Math.min(window.innerWidth, 800);
+  const cssHeight = cssWidth * (600 / 800);
+  canvas.style.width = cssWidth + "px";
+  canvas.style.height = cssHeight + "px";
+  canvas.width = cssWidth * dpr;
+  canvas.height = cssHeight * dpr;
+  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset before re-scaling on resize
+  ctx.scale((cssWidth / 800) * dpr, (cssWidth / 800) * dpr);
+  ctx.font = "20px monospace";
+  ctx.textBaseline = "top";
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
 // ---------- COLORS ----------
 const WHITE = "#ffffff";
