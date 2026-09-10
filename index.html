@@ -39,6 +39,8 @@
 const canvas = document.getElementById("game");
 const ctx = canvas.getContext("2d");
 
+let canvasScale = 1; // CSS pixels per logical (800-wide) unit
+
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
   const cssWidth = Math.min(window.innerWidth, 800);
@@ -47,10 +49,11 @@ function resizeCanvas() {
   canvas.style.height = cssHeight + "px";
   canvas.width = cssWidth * dpr;
   canvas.height = cssHeight * dpr;
-  ctx.setTransform(1, 0, 0, 1, 0, 0); // reset before re-scaling on resize
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.scale((cssWidth / 800) * dpr, (cssWidth / 800) * dpr);
   ctx.font = "20px monospace";
   ctx.textBaseline = "top";
+  canvasScale = cssWidth / 800; // <-- new: remember this for click mapping
 }
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
@@ -555,9 +558,10 @@ function pointInRect(px, py, r) {
 
 function getCanvasCoords(clientX, clientY) {
   const rect = canvas.getBoundingClientRect();
-  const scaleX = canvas.width / rect.width;
-  const scaleY = canvas.height / rect.height;
-  return { x: (clientX - rect.left) * scaleX, y: (clientY - rect.top) * scaleY };
+  return {
+    x: (clientX - rect.left) / canvasScale,
+    y: (clientY - rect.top) / canvasScale,
+  };
 }
 
 canvas.addEventListener("click", (e) => {
