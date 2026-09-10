@@ -5,3 +5,4 @@
 5. created another vercel addition to check if weather changed in users area (grabs ip saved from lilguy application and grabs the latitude and longitude from the ip and looks the weather up using lat and lon and checks it against last seen weather var and issue a notification if so)
 6. created another cron-job to visit 2nd vercel url every hour
 7. updated hunger.js to write the hunger value to the database and to incorporate seasonal values
+8. updated firebase database to be private, and never touch client’s browser
