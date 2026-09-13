@@ -153,7 +153,12 @@ dialogue.angry_missed = [
   "i wasn't really mad. i think i was just worried.",
   "it's dumb, i know you have a life. i still don't love the quiet though.",
 ];
-
+const unlockTiers = [
+  { threshold: 10 * BOND_SCALE, sprite: "wink"},
+  { threshold: 30 * BOND_SCALE, sprite: "dance"},
+  { threshold: 60 * BOND_SCALE, sprite: "heart_eyes"},
+  { threshold: 100 * BOND_SCALE, sprite: "royal"},
+];
 const keep_rect = { x: 300, y: 500, w: 90, h: 40 };
 const share_rect = { x: 420, y: 500, w: 90, h: 40 };
 const goodnight_rect = { x: 660, y: 180, w: 50, h: 50 };
@@ -201,9 +206,25 @@ async function getIp() {
   return data.ip;
 }
 
+function relationshipDescriptor() {
+  if (state.bond >= 100 * BOND_SCALE) return "inseparable";
+  if (state.bond >= 60 * BOND_SCALE) return "close";
+  if (state.bond >= 30 * BOND_SCALE) return "comfortable";
+  if (state.bond >= 10 * BOND_SCALE) return "getting to know each other";
+  return "just met";
+}
+
 function dateOnlyUTC(d) {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
 }
+
+function gainBond(baseAmount) {
+  const noise = 0.85 + Math.random() * 0.3; // ±15% variance
+  const gained = Math.round(baseAmount * BOND_SCALE * mods.bond_mult * noise);
+  state.bond += gained;
+  checkUnlocks();
+}
+
 function daysBetween(d1, d2) {
   return Math.round((d2 - d1) / 86400000);
 }
@@ -479,7 +500,10 @@ function tick() {
     state.hunger = Math.max(0, state.hunger - mods.hunger_drain * hunger_drain_weather);
     state.pets_today = Math.min(8, state.pets_today + 1);
   }
-
+  // bond tiers in tick()
+if (state.bond >= 100 * BOND_SCALE) state.lilguy_color = YELLOW;
+else if (state.bond >= 30 * BOND_SCALE) state.lilguy_color = "rgb(0,220,150)";
+else state.lilguy_color = GREEN;
   // dialogue
   state.speech_timer += 1;
   if (state.speech_timer >= 120) {
@@ -627,6 +651,7 @@ if (isNightTime()) {
   drawText(state.mental_state, 140, 180, GREEN);
   drawText(String(Math.round(state.hunger)), 230, 157, RED);
   drawText("HUNGER=", 140, 157, RED);
+  drawText(relationshipDescriptor(), 140, 163, GREEN);
   fillRect(exit_rect.x, exit_rect.y, exit_rect.w, exit_rect.h, RED);
   fillRect(feed_rect.x, feed_rect.y, feed_rect.w, feed_rect.h, BLUE);
 }
