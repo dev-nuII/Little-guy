@@ -98,6 +98,8 @@ let state = {
   moment_expires_at: 0,
   presence_moment_active: false,
   presence_moment_expires_at: 0,
+  line_display_timer: 0,
+  last_line_seen: "",
 };
 
 let hunger_drain_weather = 1.0;
@@ -142,22 +144,16 @@ const season_colors = {
 };
 const BOND_SCALE = 50; // every bond gain gets multiplied by this internally
   const unlockTiers = [
-  { threshold: 10, sprite: "wink",       frames: ["^_^", "^_^"],   lines: ["hehe, i feel closer to you now", "something feels different. good different."] },
-  { threshold: 30, sprite: "dance",      frames: ["\\o/", "/o\\"], lines: ["i wanna dance!!", "watch this!"] },
-  { threshold: 60, sprite: "heart_eyes", frames: ["<3_<3", "<3_<3"], lines: ["you're my favorite person, you know that?", "i really mean it. thank you."] },
-  { threshold: 100, sprite: "royal",     frames: ["[o]", "[o]"],   lines: ["we've really been through it together huh", "i wouldn't trade this for anything"] },
+  { threshold: 10 * BOND_SCALE, sprite: "wink",       frames: ["^_^", "^_^"],   lines: ["hehe, i feel closer to you now", "something feels different. good different."] },
+  { threshold: 30 * BOND_SCALE, sprite: "dance",      frames: ["\\o/", "/o\\"], lines: ["i wanna dance!!", "watch this!"] },
+  { threshold: 60 * BOND_SCALE, sprite: "heart_eyes", frames: ["<3_<3", "<3_<3"], lines: ["you're my favorite person, you know that?", "i really mean it. thank you."] },
+  { threshold: 100 * BOND_SCALE, sprite: "royal",     frames: ["[o]", "[o]"],   lines: ["we've really been through it together huh", "i wouldn't trade this for anything"] },
 ];
 
 dialogue.angry_missed = [
   "you were gone a while. i got weird about it. sorry.",
   "i wasn't really mad. i think i was just worried.",
   "it's dumb, i know you have a life. i still don't love the quiet though.",
-];
-const unlockTiers = [
-  { threshold: 10 * BOND_SCALE, sprite: "wink"},
-  { threshold: 30 * BOND_SCALE, sprite: "dance"},
-  { threshold: 60 * BOND_SCALE, sprite: "heart_eyes"},
-  { threshold: 100 * BOND_SCALE, sprite: "royal"},
 ];
 const keep_rect = { x: 300, y: 500, w: 90, h: 40 };
 const share_rect = { x: 420, y: 500, w: 90, h: 40 };
@@ -200,6 +196,24 @@ function checkUnlocks() {
     }
   }
 }
+function drawWrappedText(text, x, y, maxWidth, lineHeight, color) {
+  const words = text.split(" ");
+  let line = "";
+  let currentY = y;
+  ctx.fillStyle = color;
+  for (const word of words) {
+    const testLine = line + word + " ";
+    if (ctx.measureText(testLine).width > maxWidth && line !== "") {
+      ctx.fillText(line, x, currentY);
+      line = word + " ";
+      currentY += lineHeight;
+    } else {
+      line = testLine;
+    }
+  }
+  ctx.fillText(line, x, currentY);
+}
+  
 async function getIp() {
   const response = await fetch('https://api.ipify.org?format=json');
   const data = await response.json();
@@ -516,6 +530,16 @@ else state.lilguy_color = GREEN;
   state.current_line = state.gap >= 1 ? choice(dialogue.angry_missed) : choice(dialogue.angry);
 }
   }
+  if (state.current_line !== state.last_line_seen) {
+  state.last_line_seen = state.current_line;
+  state.line_display_timer = 0;
+} else if (state.current_line) {
+  state.line_display_timer += 1;
+  if (state.line_display_timer >= 5) {
+    state.current_line = "";
+    state.last_line_seen = "";
+  }
+}
   // meaningful choice moment
 if (!state.moment_active && !state.presence_moment_active && state.mood !== 3 && randInt(1, 1200) === 1) {
   state.moment_active = true;
@@ -606,8 +630,10 @@ if (isNightTime()) {
   else if (state.mood === 3) drawText("mood :   >:{", 140, 125, RED);
 
   // current dialogue line
-  if (state.current_line) drawText(state.current_line, state.x, 430, state.lilguy_color);
-
+  if (state.current_line) {
+  const clampedX = Math.min(state.x, 620);
+  drawWrappedText(state.current_line, clampedX, 430, 170, 22, state.lilguy_color);
+}
   // lil guy sprite
   drawText(text_surface, state.x, 450, state.lilguy_color);
 
@@ -745,7 +771,6 @@ canvas.addEventListener("touchstart", (e) => {
   handleClick(x, y);
 }, { passive: false });
 
-// ---------- RUN ----------
 // ---------- RUN ----------
 let intervalId = null;
 function mainLoop() {
