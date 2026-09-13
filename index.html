@@ -584,11 +584,6 @@ if (state.presence_moment_active && state.session_seconds >= state.presence_mome
   }
   state.session_seconds += 1;
 
-  // bond tiers
-  if (state.bond >= 100) state.lilguy_color = YELLOW;
-  else if (state.bond >= 30) state.lilguy_color = "rgb(0,220,150)";
-  else state.lilguy_color = GREEN;
-
   // movement
   let text_surface = "_>";
   if (state.lilstate === "_>" && state.lilstate1 === "<_") {
@@ -664,7 +659,7 @@ if (isNightTime()) {
       });
       weather_particles = weather_particles.filter(p => p[0] < 850);
     } else if (v.mode === "sun") {
-      drawText("* SUN *", 680, 20, v.color);
+      drawText("* SUN *", 680, 260, v.color);
     }
   } else {
     weather_particles = [];
