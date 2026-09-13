@@ -448,9 +448,9 @@ async function startup() {
     if (saved.last_open_date) {
       state.last_open_date = dateOnlyUTC(new Date(saved.last_open_date));
       state.gap = daysBetween(state.last_open_date, today);
-      if (state.gap === 0) {
+      if (state.gap === 1) {
         state.save_num += 1;
-      } else if (state.gap === 1) {
+      } else if (state.gap === 2) {
         state.streak += 1;
         state.save_num += 1;
         state.pets_today = 8;
