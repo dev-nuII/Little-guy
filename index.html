@@ -201,14 +201,14 @@ function checkUnlocks() {
     }
   }
 }
-function drawWrappedText(text, x, y, maxWidth, lineHeight, color) {
+function drawWrappedText(text, x, y, maxChars, lineHeight, color) {
   const words = text.split(" ");
   let line = "";
   let currentY = y;
   ctx.fillStyle = color;
   for (const word of words) {
     const testLine = line + word + " ";
-    if (ctx.measureText(testLine).width > maxWidth && line !== "") {
+    if (testLine.length > maxChars && line !== "") {
       ctx.fillText(line, x, currentY);
       line = word + " ";
       currentY += lineHeight;
@@ -622,8 +622,12 @@ if (state.presence_moment_active && state.session_seconds >= state.presence_mome
 }
 
 function draw(text_surface) {
-  clearScreen(season_colors[state.season]);
-  // choice and goodbye buttons
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, 0, 800, 600); // logical canvas bounds — always matches your design space
+  ctx.clip();
+
+  clearScreen(season_colors[state.season]);  // choice and goodbye buttons
   if (state.moment_active) {
   fillRect(keep_rect.x, keep_rect.y, keep_rect.w, keep_rect.h, "rgb(100,200,100)");
   drawText("keep it", keep_rect.x + 10, keep_rect.y + 10, BLACK);
@@ -641,9 +645,10 @@ if (isNightTime()) {
 
   // current dialogue line
   if (state.current_line) {
-  const clampedX = Math.min(state.x, 620);
-  drawWrappedText(state.current_line, clampedX, 430, 170, 22, state.lilguy_color);
+  const clampedX = Math.min(state.x, 600); // leaves room for ~20 chars before the right edge
+  drawWrappedText(state.current_line, clampedX, 430, 20, 22, state.lilguy_color);
 }
+  
   // lil guy sprite
   drawText(text_surface, state.x, 450, state.lilguy_color);
 
@@ -690,6 +695,7 @@ if (isNightTime()) {
   drawText(relationshipDescriptor(), 140, 200, GREEN);
   fillRect(exit_rect.x, exit_rect.y, exit_rect.w, exit_rect.h, RED);
   fillRect(feed_rect.x, feed_rect.y, feed_rect.w, feed_rect.h, BLUE);  
+  ctx.restore();
 }
 
 // ---------- INPUT ----------
