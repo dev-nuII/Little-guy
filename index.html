@@ -110,7 +110,8 @@ const exit_rect  = { x: 590, y: 120, w: 50, h: 50 };
 const feed_rect  = { x: 590, y: 180, w: 50, h: 50 };
 let lilguy_rect  = { x: state.x, y: 450, w: 30, h: 20 };
 const ground_rect = { x: 0, y: 500, w: 3200, h: 449 };
-
+const ground_rect2 = { x: 400, y: 500, w: 3200, h: 449};
+  
 // ---------- DIALOGUE ----------
 const dialogue = {
   happy: [
@@ -681,7 +682,8 @@ if (isNightTime()) {
   drawText(relationshipDescriptor(), 140, 200, GREEN);
   fillRect(exit_rect.x, exit_rect.y, exit_rect.w, exit_rect.h, RED);
   fillRect(feed_rect.x, feed_rect.y, feed_rect.w, feed_rect.h, BLUE);
-  fillRect(ground_rect.x, ground_rect.y, ground_rect.h, ground_rect.w, GREEN); 
+  fillRect(ground_rect.x, ground_rect.y, ground_rect.h, ground_rect.w, GREEN);
+  fillRect(ground_rect2.x, ground_rect2.y, ground_rect2.h, ground_rect2.w, GREEN); 
   
 }
 
