@@ -490,7 +490,10 @@ async function startup() {
 
   // contributions screen
   clearScreen(BLACK);
-  drawText("Made by your_local_robit and outside help.", 60, 300, if (saved && saved.recovery_code) {
+  drawText("Made by your_local_robit and outside help.", 60, 300, YELLOW);
+  await sleep(3000)
+  clearScreen(BLACK);
+  if (saved && saved.recovery_code) {
   drawText("Recovery code: " + saved.recovery_code, 60, 330, YELLOW);
 }
   await sleep(3000);
