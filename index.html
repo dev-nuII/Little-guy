@@ -47,8 +47,13 @@ let canvasScale = 1; // CSS pixels per logical (800-wide) unit
 
 function resizeCanvas() {
   const dpr = window.devicePixelRatio || 1;
-  const cssWidth = Math.min(window.innerWidth, 800);
-  const cssHeight = cssWidth * (600 / 800);
+  const aspect = 800 / 600;
+
+  // scale to whichever dimension is the tighter fit — this is what makes portrait work
+  const scaleFactor = Math.min(window.innerWidth / 800, window.innerHeight / 600);
+  const cssWidth = 800 * scaleFactor;
+  const cssHeight = 600 * scaleFactor;
+
   canvas.style.width = cssWidth + "px";
   canvas.style.height = cssHeight + "px";
   canvas.width = cssWidth * dpr;
@@ -57,9 +62,10 @@ function resizeCanvas() {
   ctx.scale((cssWidth / 800) * dpr, (cssWidth / 800) * dpr);
   ctx.font = "20px monospace";
   ctx.textBaseline = "top";
-  canvasScale = cssWidth / 800; // <-- new: remember this for click mapping
+  canvasScale = cssWidth / 800;
 }
 window.addEventListener("resize", resizeCanvas);
+window.addEventListener("orientationchange", resizeCanvas);
 resizeCanvas();
 
 // ---------- COLORS ----------
