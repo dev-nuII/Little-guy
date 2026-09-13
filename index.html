@@ -563,6 +563,7 @@ if (state.presence_moment_active && state.session_seconds >= state.presence_mome
   state.current_line = "...thanks for staying.";
 }
   // animations
+  if (state.session_seconds % 30 === 0 || state.animation_seconds_override !== 0) {
    if (state.mood === 1) {
     const unlockedSprites = unlockTiers
       .filter(t => state.unlocked_tiers.includes(t.threshold))
@@ -579,6 +580,7 @@ if (state.presence_moment_active && state.session_seconds >= state.presence_mome
     const idle = choice(["walk", "sit"]);
     if (idle === "walk") { state.lilstate = "_>"; state.lilstate1 = "<_"; state.animation = 1; }
     else { state.lilstate = "o"; state.lilstate1 = "o"; state.animation = 2; }
+  }
   }
   state.session_seconds += 1;
 
