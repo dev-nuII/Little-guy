@@ -29,6 +29,10 @@
 <button id="enableNotifs" style="position: fixed; top: 10px; left: 10px; z-index: 10; padding: 8px 12px; font-family: monospace;">
   Enable Notifications
 </button>
+<div style="position: fixed; top: 60px; left: 10px; z-index: 10; font-family: monospace;">
+  <input id="recoveryInput" placeholder="ABCD-EFGH-JKLM" style="padding: 6px;">
+  <button id="redeemBtn">Load with code</button>
+</div>
 <script>
 // --enable notifications
   document.getElementById("enableNotifs").addEventListener("click", async () => {
@@ -594,6 +598,7 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
 
+
 async function setupPush() {
   if (!("serviceWorker" in navigator)) {
     alert("serviceWorker not supported");
@@ -641,6 +646,25 @@ async function setupPush() {
   });
 
 }
+document.getElementById("redeemBtn").addEventListener("click", async () => {
+  const code = document.getElementById("recoveryInput").value;
+  try {
+    const resp = await fetch("https://lilguy-notifier.vercel.app/api/redeem-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const result = await resp.json();
+    if (!resp.ok) {
+      alert(result.error || "Code not recognized");
+      return;
+    }
+    alert("Save linked! Reloading...");
+    location.reload(); // simplest way to re-run startup() and pick up the linked save
+  } catch (e) {
+    alert("Redeem failed: " + e.message);
+  }
+});
 
 startup();
 </script>
