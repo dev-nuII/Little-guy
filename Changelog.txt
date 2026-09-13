@@ -8,3 +8,4 @@
 8. updated firebase database to be private, and never touch client’s browser
 9. updated touch mapping to accurately pinpoint where the user is clicking
 10. implemented a ip-save feature, along with updated saves. (added a recovery save phrase to add more ips that can run your save)
+11.added the rotation logic for web app.
