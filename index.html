@@ -473,7 +473,7 @@ async function startup() {
   }
 
   // deciding today's mood (only on a new day)
-  const isNewDay = !state.last_open_date || daysBetween(state.last_open_date, today) !== 0;
+  const isNewDay = !state.last_open_date || daysBetween(state.last_open_date, today) !== 1 AND !== 0;
   if (isNewDay) {
     const offDayChance = randInt(1, 10);
     const dailyLuck = randInt(1, 5);
