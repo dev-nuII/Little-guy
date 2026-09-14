@@ -427,7 +427,7 @@ async function startup() {
     state.unlocked_tiers = saved.unlocked_tiers ?? [];
     state.seen_first_snow = saved.seen_first_snow ?? false;
     state.vapid_public_key = saved.vapid_public_key;
-    atate.vapid_private_key = saved.vapid_private_key;
+    state.vapid_private_key = saved.vapid_private_key;
 
     for (const tier of unlockTiers) {
   if (state.unlocked_tiers.includes(tier.threshold)) {
