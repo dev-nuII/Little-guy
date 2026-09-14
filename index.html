@@ -308,12 +308,14 @@ async function saveToCloud() {
     highest_bond: state.highest_bond,
     unlocked_tiers: state.unlocked_tiers,
     seen_first_snow: state.seen_first_snow,
+    vapid_public_key: state.vapid_public_key,
+    vapid_private_key: state.vapid_private_key,
   };
 
   try {
 
     const response = await fetch("https://lilguy-notifier.vercel.app/api/save-game", {
-      method: "PATCH",
+      method: "POST",
 
       headers: {
         "Content-Type": "application/json"
