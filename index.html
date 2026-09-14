@@ -734,7 +734,8 @@ if (isNightTime() && pointInRect(clickX, clickY, goodnight_rect)) {
 }
   if (pointInRect(clickX, clickY, exit_rect)) {
     state.running = false;
-    clearScreen(season_colors[state.season]);
+    clearScreen(season_colors[state.seaso
+              n]);
     let bye;
     if (state.mood === 1) bye = "bye!! come back soon ok? <3";
     else if (state.mood === 3) bye = "....bye.";
