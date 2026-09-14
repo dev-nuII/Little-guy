@@ -308,8 +308,6 @@ async function saveToCloud() {
     highest_bond: state.highest_bond,
     unlocked_tiers: state.unlocked_tiers,
     seen_first_snow: state.seen_first_snow,
-    vapid_public_key: state.vapid_public_key,
-    vapid_private_key: state.vapid_private_key,
   };
 
   try {
@@ -801,7 +799,7 @@ function mainLoop() {
   }, 1000);
 }
 
-const VAPID_PUBLIC_KEY = "BG96bnN1CxHVi1bD3sKv6bk91y7OTF5JkKyW-ZBkmUW3XRKCx_nmNIkZtYlYSqp3mMNX_MP4Td4oDW06gehU4U0";
+const VAPID_PUBLIC_KEY = state.vapid_public_key
 
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
