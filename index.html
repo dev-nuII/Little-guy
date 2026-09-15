@@ -34,22 +34,6 @@
   <button id="redeemBtn">Load with code</button>
 </div>
 <script>
-// ---------- DEVICE ID ----------
-// IP addresses are NOT a reliable way to identify a device — mobile carriers
-// (NAT pools) and iCloud Private Relay can change a phone's apparent IP
-// between two requests made seconds apart. That breaks save/notification
-// lookups that key off IP. Instead we mint one random ID per install and
-// persist it in localStorage, then send it on every API call.
-function getDeviceId() {
-  const KEY = "lilguy_device_id";
-  let id = localStorage.getItem(KEY);
-  if (!id) {
-    id = (crypto.randomUUID ? crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2)));
-    localStorage.setItem(KEY, id);
-  }
-  return id;
-}
-
 // --enable notifications
   document.getElementById("enableNotifs").addEventListener("click", async () => {
   await setupPush();
@@ -279,7 +263,7 @@ function clearScreen(color) {
 // ---------- FIREBASE ----------
 async function loadSave() {
   try {
-    const resp = await fetch("https://lilguy-notifier.vercel.app/api/load-save?deviceId=" + encodeURIComponent(getDeviceId()));
+    const resp = await fetch("https://lilguy-notifier.vercel.app/api/load-save");
 
     if (!resp.ok) {
       throw new Error("Server returned " + resp.status);
@@ -321,7 +305,6 @@ async function saveToCloud() {
     weather: state.weather,
     save_num: state.save_num,
     userIp: await getIp(),
-    deviceId: getDeviceId(),
     highest_bond: state.highest_bond,
     unlocked_tiers: state.unlocked_tiers,
     seen_first_snow: state.seen_first_snow,
@@ -824,44 +807,6 @@ function urlBase64ToUint8Array(base64String) {
 }
 
 
-// PushSubscription objects rely on an implicit toJSON() call inside
-// JSON.stringify() to expose endpoint/keys. That auto-invocation has
-// historically been unreliable across WebKit/iOS versions (it can silently
-// serialize to {} or drop the keys), which is what produces the server's
-// "Invalid push subscription" error. Building the plain object explicitly
-// — and falling back to getKey() if toJSON() ever comes back incomplete —
-// avoids depending on that implicit behavior.
-function subscriptionToPlainObject(subscription) {
-  const toBase64Url = (buffer) => {
-    if (!buffer) return null;
-    const bytes = new Uint8Array(buffer);
-    let binary = "";
-    for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
-    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-  };
-
-  let json = null;
-  try {
-    json = typeof subscription.toJSON === "function" ? subscription.toJSON() : null;
-  } catch (e) {
-    json = null;
-  }
-
-  if (json && json.endpoint && json.keys && json.keys.p256dh && json.keys.auth) {
-    return json;
-  }
-
-  // Fallback: build it manually from the underlying subscription object.
-  return {
-    endpoint: subscription.endpoint,
-    expirationTime: subscription.expirationTime ?? null,
-    keys: {
-      p256dh: toBase64Url(subscription.getKey ? subscription.getKey("p256dh") : null),
-      auth: toBase64Url(subscription.getKey ? subscription.getKey("auth") : null),
-    },
-  };
-}
-
 async function setupPush() {
   if (!("serviceWorker" in navigator)) {
     alert("serviceWorker not supported");
@@ -900,34 +845,14 @@ async function setupPush() {
     });
   }
 
-  const subscriptionPayload = subscriptionToPlainObject(subscription);
-  if (!subscriptionPayload.endpoint || !subscriptionPayload.keys || !subscriptionPayload.keys.p256dh || !subscriptionPayload.keys.auth) {
-    alert("Push subscription looked incomplete on this device (missing endpoint/keys) — this can happen on some iOS versions. Try removing the app from your Home Screen, re-adding it, and enabling notifications again.");
-    return;
-  }
+  await fetch("https://lilguy-notifier.vercel.app/api/save-push", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(subscription)
+  });
 
-  const outgoingBody = JSON.stringify({ deviceId: getDeviceId(), subscription: subscriptionPayload });
-  alert("DEBUG outgoing payload:\n" + outgoingBody); // TEMP — remove once confirmed working
-
-  try {
-    const resp = await fetch("https://lilguy-notifier.vercel.app/api/save-push", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: outgoingBody
-    });
-
-    if (!resp.ok) {
-      const err = await resp.json().catch(() => ({}));
-      alert("Couldn't save notification subscription: " + (err.error || resp.status));
-      return;
-    }
-
-    alert("Notifications enabled!");
-  } catch (e) {
-    alert("Couldn't reach the server to save notification subscription: " + e.message);
-  }
 }
 document.getElementById("redeemBtn").addEventListener("click", async () => {
   const code = document.getElementById("recoveryInput").value;
@@ -935,7 +860,7 @@ document.getElementById("redeemBtn").addEventListener("click", async () => {
     const resp = await fetch("https://lilguy-notifier.vercel.app/api/redeem-code", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code, deviceId: getDeviceId() }),
+      body: JSON.stringify({ code }),
     });
     const result = await resp.json();
     if (!resp.ok) {
@@ -950,6 +875,7 @@ document.getElementById("redeemBtn").addEventListener("click", async () => {
 });
 
 startup();
+</script>
 </script>
 </body>
 </html>
